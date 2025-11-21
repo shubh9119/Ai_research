@@ -1,0 +1,502 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>LeadBot — Enhanced Research (Wikipedia)</title>
+<style>
+  /* -------------------------
+     Basic reset & fonts
+     ------------------------- */
+  :root{
+    --accent-dark:#7c3aed;
+    --accent-light:#8b5cf6;
+    --bg-dark:#0f1724;
+    --panel-dark:#0b1220;
+    --muted-dark:#94a3b8;
+    --white-dark:#e6eef8;
+    --bg-light:#f6f7fb;
+    --panel-light:#ffffff;
+    --muted-light:#475569;
+    --white-light:#0b1220;
+    --glass-alpha: rgba(255,255,255,0.03);
+  }
+  *{box-sizing:border-box;margin:0;padding:0;font-family:Inter,system-ui,-apple-system,Segoe UI,Roboto,"Helvetica Neue",Arial;}
+  html,body,#app{height:100%;}
+  body{
+    background:var(--bg-dark);
+    color:var(--white-dark);
+    -webkit-font-smoothing:antialiased;
+    -moz-osx-font-smoothing:grayscale;
+  }
+
+  /* -------------------------
+     Layout
+     ------------------------- */
+  .app{display:grid;grid-template-columns:260px 1fr;gap:16px;height:100vh;padding:14px;}
+  .sidebar{
+    background:var(--panel-dark);
+    border-radius:12px;
+    padding:18px;
+    display:flex;flex-direction:column;gap:12px;
+    min-width:220px;
+    box-shadow: 0 6px 18px rgba(2,6,23,0.45);
+  }
+  .brand{display:flex;flex-direction:column}
+  .brand .title{color:var(--accent-dark);font-weight:700;font-size:20px;}
+  .brand .subtitle{color:var(--muted-dark);font-size:12px;margin-top:4px;}
+
+  .history-label{color:var(--muted-dark);font-weight:600;margin-top:10px;}
+  .history-list{flex:1;background:transparent;border:0;outline:none;color:var(--white-dark);padding:8px;overflow:auto;}
+  .history-item{padding:8px;border-radius:8px;cursor:pointer;color:var(--white-dark);font-size:13px;}
+  .history-item:hover{background:rgba(255,255,255,0.02);}
+
+  .controls{display:flex;flex-direction:column;gap:8px;margin-top:6px}
+  .btn{padding:8px 10px;border-radius:8px;border:0;cursor:pointer;background:transparent;color:var(--muted-dark);}
+  .btn.primary{background:var(--panel-dark);color:var(--muted-dark);}
+
+  /* -------------------------
+     Main content
+     ------------------------- */
+  .main{
+    display:flex;flex-direction:column;height:100%;
+  }
+  .topbar{display:flex;justify-content:space-between;align-items:center;padding:10px 6px 6px 6px;}
+  .topbar .left{display:flex;align-items:center;gap:8px;}
+  .topbar .title{font-size:18px;color:var(--accent-dark);font-weight:700;}
+  .topbar .status{color:var(--muted-dark);font-size:12px;}
+
+  .topbar .right{display:flex;align-items:center;gap:8px;}
+  .theme-toggle{background:transparent;border:0;cursor:pointer;font-size:18px;color:var(--muted-dark);}
+
+  .chat-area{
+    background:transparent;padding:10px 4px;border-radius:8px;flex:1;overflow:auto;
+    display:flex;flex-direction:column;gap:6px;
+  }
+
+  /* Cards */
+  .card-row{display:flex;align-items:flex-start;gap:12px;}
+  .bot-card{align-self:flex-start;max-width:72%;display:flex;gap:10px;align-items:flex-start}
+  .bot-avatar{width:44px;height:44px;border-radius:50%;background:var(--accent-dark);display:flex;align-items:center;justify-content:center;color:#fff;font-size:18px}
+  .bot-bubble{background:var(--panel-dark);border-radius:12px;padding:12px;color:var(--muted-dark);box-shadow:0 6px 20px rgba(2,6,23,0.45);line-height:1.4;white-space:pre-wrap}
+  .user-row{display:flex;justify-content:flex-end;}
+  .user-bubble{background:var(--accent-dark);color:#fff;padding:12px;border-radius:14px;max-width:66%;font-weight:700;line-height:1.3}
+
+  .report-card{align-self:center;max-width:84%;background:var(--panel-dark);padding:14px;border-radius:12px;color:var(--muted-dark);white-space:pre-wrap}
+
+  /* Floating input */
+  .input-bar{position:sticky;bottom:8px;background:linear-gradient(180deg, rgba(255,255,255,0.01), rgba(0,0,0,0.03));backdrop-filter: blur(6px);padding:14px;border-radius:12px;display:flex;flex-direction:column;gap:8px;box-shadow:0 8px 30px rgba(2,6,23,0.45);}
+  .entry-row{display:flex;gap:8px;}
+  .topic-input{flex:1;padding:10px 12px;border-radius:10px;border:0;background:var(--panel-dark);color:var(--white-dark);font-size:14px}
+  .start-btn{padding:10px 16px;border-radius:10px;border:0;background:var(--accent-dark);color:white;cursor:pointer;font-weight:700}
+
+  .quick-pills{display:flex;gap:8px;flex-wrap:wrap;padding-top:4px}
+  .pill{padding:6px 10px;border-radius:999px;border:0;background:var(--panel-dark);color:var(--accent-dark);cursor:pointer;font-weight:700;font-size:13px}
+  .pill.disabled{opacity:0.45;background:transparent;color:var(--muted-dark);cursor:default}
+
+  /* small helpers */
+  .muted{color:var(--muted-dark);font-size:13px}
+  .small{font-size:12px}
+  pre.report{white-space:pre-wrap;font-family:inherit}
+
+  /* -------------------------
+     Light theme overrides (when body has .light)
+     ------------------------- */
+  body.light{
+    background:var(--bg-light);
+    color:var(--white-light);
+  }
+  body.light .sidebar{background:var(--panel-light);box-shadow:none}
+  body.light .brand .subtitle, body.light .history-label, body.light .muted{color:var(--muted-light)}
+  body.light .bot-bubble, body.light .report-card, body.light .topic-input, body.light .pill{background:var(--panel-light);color:var(--muted-light)}
+  body.light .bot-avatar{background:var(--accent-light)}
+  body.light .user-bubble{background:var(--accent-light);color:white}
+  body.light .start-btn{background:var(--accent-light)}
+  body.light .history-item{color:var(--white-light)}
+  /* responsive */
+  @media (max-width:900px){
+    .app{grid-template-columns:1fr;}
+    .sidebar{display:none}
+    .app .main{padding:8px}
+  }
+</style>
+</head>
+<body>
+<div id="app" class="app">
+  <aside class="sidebar" role="navigation">
+    <div class="brand">
+      <div class="title">LeadBot</div>
+      <div class="subtitle">Research Assistant</div>
+    </div>
+
+    <div class="history-label">History</div>
+    <div id="historyList" class="history-list" aria-label="History"></div>
+
+    <div class="controls">
+      <button id="clearChatBtn" class="btn">Clear Chat</button>
+      <button id="themeToggleBtn" class="btn">Toggle Theme</button>
+    </div>
+  </aside>
+
+  <main class="main" role="main" aria-live="polite">
+    <div class="topbar">
+      <div class="left">
+        <div class="title">LeadBot</div>
+        <div class="status muted">Wikipedia Research</div>
+      </div>
+      <div class="right">
+        <button id="themeBtn" class="theme-toggle" title="Toggle theme">🌙</button>
+      </div>
+    </div>
+
+    <section id="chatArea" class="chat-area" aria-live="polite">
+      <!-- Messages appended here -->
+    </section>
+
+    <div class="input-bar" role="region" aria-label="Input area">
+      <div class="entry-row">
+        <input id="topicInput" class="topic-input" placeholder="Enter topic or paste a Wikipedia link..." aria-label="Topic input" />
+        <button id="startBtn" class="start-btn">Start</button>
+      </div>
+      <div id="quickPills" class="quick-pills" aria-label="Quick replies"></div>
+    </div>
+  </main>
+</div>
+
+<script>
+/*
+  LeadBot Web - single-file JS
+  - Planner agent
+  - Search agent (Wikipedia summary + search fallback)
+  - Synthesizer
+  - UI interactions, history, theme, quick pills
+  - Uses fetch() to call Wikipedia REST and API
+*/
+
+const USER_AGENT = "LeadBot-Web/1.0";
+const SUMMARY_ENDPOINT = "https://en.wikipedia.org/api/rest_v1/page/summary/";
+const SEARCH_ENDPOINT = "https://en.wikipedia.org/w/api.php?action=query&list=search&srsearch={q}&format=json&origin=*";
+
+const state = {
+  questions: [],
+  research: [],
+  answered: new Set(),
+  history: loadHistory(),
+  useDark: true
+};
+
+const els = {
+  chatArea: document.getElementById("chatArea"),
+  topicInput: document.getElementById("topicInput"),
+  startBtn: document.getElementById("startBtn"),
+  quickPills: document.getElementById("quickPills"),
+  historyList: document.getElementById("historyList"),
+  clearChatBtn: document.getElementById("clearChatBtn"),
+  themeBtn: document.getElementById("themeBtn"),
+  themeToggleBtn: document.getElementById("themeToggleBtn")
+};
+
+// -----------------------------
+// Utilities
+// -----------------------------
+function sanitizeTopic(raw){
+  if(!raw) return "";
+  let s = raw.trim();
+  s = s.replace(/^(who is|who was|what is|what are|tell me about|give me info on|info about)\\s+/i, "");
+  return s.trim();
+}
+
+function scrollToBottom(){
+  els.chatArea.scrollTo({top: els.chatArea.scrollHeight, behavior: "smooth"});
+}
+
+function appendBotCard(text){
+  const row = document.createElement("div");
+  row.className = "card-row bot-card";
+  const av = document.createElement("div");
+  av.className = "bot-avatar";
+  av.textContent = "🤖";
+  const bubble = document.createElement("div");
+  bubble.className = "bot-bubble";
+  bubble.textContent = text;
+  row.appendChild(av);
+  row.appendChild(bubble);
+  els.chatArea.appendChild(row);
+  scrollToBottom();
+}
+
+function appendUserCard(text){
+  const row = document.createElement("div");
+  row.className = "card-row user-row";
+  const bubble = document.createElement("div");
+  bubble.className = "user-bubble";
+  bubble.textContent = text;
+  row.appendChild(bubble);
+  els.chatArea.appendChild(row);
+  scrollToBottom();
+}
+
+function appendReportCard(text){
+  const card = document.createElement("div");
+  card.className = "report-card";
+  card.innerHTML = "<pre class='report'>" + escapeHtml(text) + "</pre>";
+  els.chatArea.appendChild(card);
+  scrollToBottom();
+}
+
+function escapeHtml(str){
+  return String(str).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
+}
+
+// -----------------------------
+// History
+// -----------------------------
+function saveHistory(){
+  try{ localStorage.setItem("leadbot_history", JSON.stringify(state.history.slice(0,200))); }catch(e){}
+}
+
+function loadHistory(){
+  try{
+    const raw = localStorage.getItem("leadbot_history");
+    if(!raw) return [];
+    return JSON.parse(raw);
+  }catch(e){ return []; }
+}
+
+function refreshHistoryUI(){
+  els.historyList.innerHTML = "";
+  state.history.forEach((h, idx) => {
+    const item = document.createElement("div");
+    item.className = "history-item";
+    item.textContent = h;
+    item.onclick = () => {
+      els.topicInput.value = h;
+      els.topicInput.focus();
+    };
+    els.historyList.appendChild(item);
+  });
+}
+
+// -----------------------------
+// Planner agent (generates quick replies)
+// -----------------------------
+function plannerAgent(topic){
+  const t = sanitizeTopic(topic);
+  if(!t) return [];
+  return [
+    `Who is ${t}?`,
+    `What are the most important facts about ${t}?`,
+    `What are recent developments related to ${t}?`
+  ];
+}
+
+// -----------------------------
+// Wikipedia fetch helpers
+// -----------------------------
+async function fetchSummary(titleOrQuery, timeout=8000){
+  if(!titleOrQuery) return null;
+  // try with underscores and original
+  const candidates = [titleOrQuery.replace(/\\s+/g,"_"), titleOrQuery];
+  for(const c of candidates){
+    const url = SUMMARY_ENDPOINT + encodeURIComponent(c);
+    try{
+      const resp = await fetch(url, { method: "GET", headers: { "Accept":"application/json", "User-Agent": USER_AGENT }, signal: timeoutSignal(timeout) });
+      if(resp.status === 200){
+        const j = await resp.json();
+        if(j.extract) return j.extract.trim();
+        if(j.description) return j.description.trim();
+      }
+    }catch(e){
+      // continue to next or return null on fatal
+    }
+  }
+  return null;
+}
+
+function timeoutSignal(ms){
+  const controller = new AbortController();
+  setTimeout(()=>controller.abort(), ms);
+  return controller.signal;
+}
+
+async function wikipediaSearchThenSummary(query, timeout=8000){
+  if(!query) return null;
+  const url = SEARCH_ENDPOINT.replace("{q}", encodeURIComponent(query));
+  try{
+    const resp = await fetch(url, { method: "GET", headers: { "User-Agent": USER_AGENT }, signal: timeoutSignal(timeout) });
+    if(resp.status !== 200) return null;
+    const j = await resp.json();
+    const hits = j?.query?.search || [];
+    if(!hits.length) return null;
+    const title = hits[0].title;
+    if(!title) return null;
+    return await fetchSummary(title, timeout);
+  }catch(e){
+    return null;
+  }
+}
+
+// -----------------------------
+// Search agent (tries summary, then search fallback)
+// -----------------------------
+async function searchAgent(question){
+  // strip leading interrogatives
+  let q = question.replace(/^(who is|who was|what is|what are|tell me about)\\s+/i, "").trim();
+  q = q.replace(/[?.]$/,"").trim();
+  if(!q) return "(No query)";
+  const s = await fetchSummary(q);
+  if(s) return "(Wikipedia) " + s;
+  const s2 = await wikipediaSearchThenSummary(q);
+  if(s2) return "(Wikipedia) " + s2;
+  return "(Wikipedia) No article found for the query.";
+}
+
+// -----------------------------
+// Synthesizer agent (summarize research results)
+// -----------------------------
+function synthesizerAgent(topic, researchResults){
+  const t = sanitizeTopic(topic) || "the topic";
+  let intro = `Introduction:\nThis report summarizes information about ${t} using only Wikipedia content.\n\n`;
+  let findings = "Findings:\n";
+  for(const [q,a] of researchResults){
+    let s = (a || "").trim();
+    if(s.length > 900){
+      s = s.slice(0,900);
+      // try to cut at last sentence end
+      const lastDot = s.lastIndexOf(".");
+      if(lastDot > 300) s = s.slice(0,lastDot) + "...";
+      else s = s + "...";
+    }
+    findings += `- ${q}: ${s}\n\n`;
+  }
+  const conclusion = "Conclusion:\nThis concludes the synthesized summary based solely on Wikipedia extracts.\n";
+  return intro + findings + conclusion;
+}
+
+// -----------------------------
+// Quick pills UI
+// -----------------------------
+function clearQuicks(){ els.quickPills.innerHTML = ""; }
+function showQuicks(options){
+  clearQuicks();
+  options.forEach(opt => {
+    const b = document.createElement("button");
+    b.className = "pill";
+    b.innerHTML = `• ${opt}`;
+    b.onclick = () => onQuickClick(opt, b);
+    els.quickPills.appendChild(b);
+  });
+}
+
+// -----------------------------
+// Actions & flows
+// -----------------------------
+async function onStart(){
+  let topic = els.topicInput.value.trim();
+  if(!topic){ alert("Please enter a topic or paste a Wikipedia link."); return; }
+  // disable input while planner runs
+  els.topicInput.disabled = true;
+  els.startBtn.disabled = true;
+  appendUserCard(topic);
+  // add to history
+  state.history.unshift(topic);
+  state.history = Array.from(new Set(state.history)); // unique
+  saveHistory();
+  refreshHistoryUI();
+
+  // planner
+  const qs = plannerAgent(topic);
+  state.questions = qs;
+  state.research = [];
+  state.answered = new Set();
+  setTimeout(()=>appendBotCard("Nice! Choose a question below to research."), 180);
+  setTimeout(()=>showQuicks(qs), 300);
+  // re-enable input only after synth step finishes (handled later)
+}
+
+async function onQuickClick(question, pillElem){
+  appendUserCard(question);
+  pillElem.classList.add("disabled");
+  pillElem.disabled = true;
+  if(state.answered.has(question)) return;
+  // perform search
+  const ans = await searchAgent(question);
+  state.research.push([question, ans]);
+  state.answered.add(question);
+  appendBotCard(ans);
+  // if all answered, synthesize
+  if(state.answered.size >= state.questions.length){
+    setTimeout(()=>clearQuicks(), 350);
+    setTimeout(async () => {
+      const report = synthesizerAgent(sanitizeTopic(els.topicInput.value || ""), state.research);
+      appendReportCard(report);
+      resetInput();
+    }, 450);
+  }
+}
+
+function resetInput(){
+  els.topicInput.disabled = false;
+  els.startBtn.disabled = false;
+  els.topicInput.value = "";
+  els.topicInput.placeholder = "Enter topic or paste a Wikipedia link...";
+  els.topicInput.focus();
+}
+
+// -----------------------------
+// Theme toggling
+// -----------------------------
+function applyTheme(){
+  if(state.useDark){
+    document.body.classList.remove("light");
+    els.themeBtn.textContent = "🌙";
+  } else {
+    document.body.classList.add("light");
+    els.themeBtn.textContent = "☀";
+  }
+}
+
+els.themeBtn.addEventListener("click", ()=>{
+  state.useDark = !state.useDark;
+  applyTheme();
+});
+els.themeToggleBtn.addEventListener("click", ()=>{
+  state.useDark = !state.useDark;
+  applyTheme();
+});
+
+// -----------------------------
+// Clear chat
+// -----------------------------
+els.clearChatBtn.addEventListener("click", ()=>{
+  if(!confirm("Clear chat and history?")) return;
+  els.chatArea.innerHTML = "";
+  state.history = [];
+  saveHistory();
+  refreshHistoryUI();
+  resetInput();
+  appendBotCard("Hi — I'm LeadBot. Tell me a topic and I'll research it using Wikipedia.");
+});
+
+// -----------------------------
+// Start button / Enter key
+// -----------------------------
+els.startBtn.addEventListener("click", onStart);
+els.topicInput.addEventListener("keydown", (e)=>{
+  if(e.key === "Enter"){ onStart(); }
+});
+
+// -----------------------------
+// Initial UI setup
+// -----------------------------
+function init(){
+  refreshHistoryUI();
+  applyTheme();
+  appendBotCard("Hi — I'm LeadBot. Tell me a topic and I'll research it using Wikipedia.");
+}
+
+init();
+
+</script>
+</body>
+</html>
